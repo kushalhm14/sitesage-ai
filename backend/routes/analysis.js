@@ -7,6 +7,62 @@ import { authenticateToken, checkAnalysisQuota } from '../middleware/auth.js';
 const router = express.Router();
 
 /**
+ * POST /api/analysis/generate-code
+ * AI Agent: Generate production-ready code for implementing SEO fixes
+ */
+router.post('/generate-code', authenticateToken, async (req, res) => {
+  try {
+    const { analysisId } = req.body;
+
+    if (!analysisId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide an analysis ID'
+      });
+    }
+
+    console.log(`🤖 AI Agent generating code for analysis: ${analysisId}`);
+
+    // Get the analysis
+    const analysis = await Analysis.findById(analysisId);
+    if (!analysis || analysis.userId.toString() !== req.user._id.toString()) {
+      return res.status(404).json({
+        success: false,
+        message: 'Analysis not found'
+      });
+    }
+
+    // Generate implementation code using AI Agent
+    const codePackage = await geminiService.generateImplementationCode(
+      analysis.results,
+      analysis.input.url || analysis.input.businessName
+    );
+
+    // Save code package to analysis
+    analysis.generatedCode = codePackage;
+    await analysis.save();
+
+    res.json({
+      success: true,
+      message: 'AI Agent successfully generated implementation code',
+      data: {
+        codePackage,
+        analysisId: analysis._id,
+        url: analysis.input.url
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Code Generation Error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to generate code',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/**
  * POST /api/analysis/analyze-url
  * Analyze a website URL
  */

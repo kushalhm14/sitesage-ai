@@ -12,27 +12,39 @@ const Navigation = () => {
   const isLandingPage = location.pathname === "/";
 
   useEffect(() => {
-    // Get user data from localStorage
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      try {
-        const user = JSON.parse(userData);
-        if (user.name) {
-          setUserName(user.name);
-          // Get initials from name
-          const nameParts = user.name.trim().split(" ");
-          const initials = nameParts
-            .map(part => part[0])
-            .join("")
-            .toUpperCase()
-            .slice(0, 2);
-          setUserInitials(initials);
+    // Function to load user data
+    const loadUserData = () => {
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          if (user.name) {
+            setUserName(user.name);
+            // Get initials from name
+            const nameParts = user.name.trim().split(" ");
+            const initials = nameParts
+              .map(part => part[0])
+              .join("")
+              .toUpperCase()
+              .slice(0, 2);
+            setUserInitials(initials);
+          }
+        } catch (error) {
+          console.error("Error parsing user data:", error);
         }
-      } catch (error) {
-        console.error("Error parsing user data:", error);
       }
-    }
-  }, []);
+    };
+
+    // Load user data on mount and when location changes
+    loadUserData();
+
+    // Also listen for storage changes (in case login happens in another tab)
+    window.addEventListener('storage', loadUserData);
+    
+    return () => {
+      window.removeEventListener('storage', loadUserData);
+    };
+  }, [location]);
 
   if (!isLandingPage) {
     return (

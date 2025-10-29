@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { authAPI, saveAuthData } from "@/lib/api";
 
 const Signup = () => {
   const [fullName, setFullName] = useState("");
@@ -12,10 +13,11 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!fullName || !email || !password || !confirmPassword) {
@@ -54,14 +56,35 @@ const Signup = () => {
       return;
     }
 
-    toast({
-      title: "Account created!",
-      description: "Welcome to SiteSage AI",
-    });
-    
-    setTimeout(() => {
-      navigate("/dashboard");
-    }, 500);
+    // Call real signup API
+    setIsLoading(true);
+    try {
+      const response = await authAPI.signup({
+        name: fullName,
+        email,
+        password
+      });
+
+      // Save token and user data to localStorage
+      saveAuthData(response.token, response.user);
+
+      toast({
+        title: "Account created!",
+        description: `Welcome to SiteSage AI, ${response.user.name}!`,
+      });
+      
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 500);
+    } catch (error: any) {
+      toast({
+        title: "Signup failed",
+        description: error.message || "Failed to create account. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getPasswordStrength = () => {
@@ -163,8 +186,8 @@ const Signup = () => {
             </label>
           </div>
 
-          <Button type="submit" className="w-full h-12 btn-gradient text-lg font-semibold">
-            Create Account →
+          <Button type="submit" className="w-full h-12 btn-gradient text-lg font-semibold" disabled={isLoading}>
+            {isLoading ? "Creating Account..." : "Create Account →"}
           </Button>
         </form>
 
