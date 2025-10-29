@@ -121,21 +121,6 @@ const analysisSchema = new mongoose.Schema({
     select: false // Don't include by default
   },
   
-  // AI Agent Generated Code (NEW - for code generation feature)
-  generatedCode: {
-    htmlMeta: String,
-    jsonLd: String,
-    nextjsMetadata: String,
-    wordpressCode: String,
-    imageAlts: [{
-      currentSrc: String,
-      newAlt: String,
-      htmlSnippet: String
-    }],
-    generatedAt: Date,
-    processingTime: Number
-  },
-  
   // Performance metrics
   processingTime: {
     type: Number, // in milliseconds

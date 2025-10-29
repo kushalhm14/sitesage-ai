@@ -1,14 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
-import CodePreview from "@/components/CodePreview";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ChevronDown, ChevronUp, Copy, FileDown, RefreshCw, Check, Zap, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, FileDown, RefreshCw, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { analysisAPI } from "@/lib/api";
 
 const Results = () => {
   const location = useLocation();
@@ -17,8 +15,6 @@ const Results = () => {
   const [expandedSections, setExpandedSections] = useState<number[]>([0, 1, 2]);
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [keyword, setKeyword] = useState("");
-  const [generatedCode, setGeneratedCode] = useState<any>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   // Get real data from navigation state
   useEffect(() => {
@@ -47,48 +43,6 @@ const Results = () => {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({ title: "✅ Copied!", description: "Text copied to clipboard" });
-  };
-
-  const handleGenerateCode = async () => {
-    const analysisId = analysisData?.id || analysisData?._id;
-    
-    if (!analysisId) {
-      toast({
-        title: "Error",
-        description: "Analysis ID not found. Please run analysis again.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      console.log("🤖 AI Agent generating code for analysis:", analysisId);
-      
-      const response = await analysisAPI.generateCode(analysisId);
-      
-      if (response.success) {
-        setGeneratedCode(response.data.codePackage);
-        toast({
-          title: "🎉 Code Generated!",
-          description: "AI Agent has generated production-ready code",
-        });
-        
-        // Scroll to code preview
-        setTimeout(() => {
-          document.getElementById('code-preview')?.scrollIntoView({ behavior: 'smooth' });
-        }, 300);
-      }
-    } catch (error: any) {
-      console.error("Code generation error:", error);
-      toast({
-        title: "❌ Generation Failed",
-        description: error.message || "Failed to generate code. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsGenerating(false);
-    }
   };
 
   // Show loading while data is being fetched
@@ -127,28 +81,6 @@ const Results = () => {
               <p className="text-sm text-muted-foreground mb-6">🔑 Target Keyword: <strong>{keyword}</strong></p>
             )}
             <div className="flex flex-wrap gap-4 justify-center">
-              <Button
-                onClick={handleGenerateCode}
-                disabled={isGenerating || !!generatedCode}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold px-6 py-6 text-lg"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    AI Agent Working...
-                  </>
-                ) : generatedCode ? (
-                  <>
-                    <Check className="mr-2 h-5 w-5" />
-                    Code Generated!
-                  </>
-                ) : (
-                  <>
-                    <Zap className="mr-2 h-5 w-5" />
-                    🤖 Generate Production Code
-                  </>
-                )}
-              </Button>
               <Link to="/dashboard">
                 <Button variant="outline" className="px-6 py-6">
                   <RefreshCw className="mr-2" size={18} />
@@ -158,16 +90,6 @@ const Results = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* AI AGENT GENERATED CODE - Shows production-ready code */}
-        {generatedCode && (
-          <div id="code-preview" className="max-w-5xl mx-auto mb-8 animate-fade-in">
-            <CodePreview 
-              codePackage={generatedCode} 
-              url={analysisData.url || analysisData.businessName || 'Your Website'} 
-            />
-          </div>
-        )}
 
         <div className="max-w-5xl mx-auto space-y-6">
           {sections.map((section, index) => (

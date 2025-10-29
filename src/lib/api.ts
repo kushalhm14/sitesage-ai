@@ -201,35 +201,6 @@ export const analysisAPI = {
   getHistory: async (): Promise<AnalysisHistory> => {
     return apiRequest<AnalysisHistory>('/analysis/history');
   },
-
-  // AI Agent: Generate production-ready code
-  generateCode: async (analysisId: string): Promise<{
-    success: boolean;
-    message: string;
-    data: {
-      codePackage: {
-        htmlMeta: string;
-        jsonLd: string;
-        nextjsMetadata: string;
-        wordpressCode: string;
-        imageAlts: Array<{
-          currentSrc: string;
-          newAlt: string;
-          htmlSnippet: string;
-        }>;
-        generatedAt: string;
-        processingTime: number;
-        url: string;
-      };
-      analysisId: string;
-      url: string;
-    };
-  }> => {
-    return apiRequest('/analysis/generate-code', {
-      method: 'POST',
-      body: JSON.stringify({ analysisId }),
-    });
-  },
 };
 
 // ============ HELPER FUNCTIONS ============
