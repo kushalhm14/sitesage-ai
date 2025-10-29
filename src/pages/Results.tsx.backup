@@ -1,0 +1,824 @@
+import { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import Navigation from "@/components/Navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { ChevronDown, ChevronUp, Copy, FileDown, RefreshCw, Check } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+const Results = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [expandedSections, setExpandedSections] = useState<number[]>([0, 1, 2]);
+  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [keyword, setKeyword] = useState("");
+
+  // Get real data from navigation state
+  useEffect(() => {
+    const state = location.state as any;
+    if (!state || !state.data) {
+      toast({
+        title: "No analysis data",
+        description: "Please run an analysis first",
+        variant: "destructive"
+      });
+      navigate("/dashboard");
+      return;
+    }
+
+    console.log("📊 Analysis Data Received:", state.data);
+    setAnalysisData(state.data);
+    setKeyword(state.keyword || "");
+  }, [location, navigate, toast]);
+
+  const toggleSection = (index: number) => {
+    setExpandedSections(prev =>
+      prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
+    );
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "✅ Copied!", description: "Text copied to clipboard" });
+  };
+
+  // Show loading while data is being fetched
+  if (!analysisData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading your AI analysis...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const results = analysisData.results || {};
+  const sections = buildSections(results, keyword, copyToClipboard);
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navigation />
+
+      <div className="container mx-auto px-4 py-12">
+        {/* Header */}
+        <Card className="mb-8 card-hover">
+          <CardContent className="p-8 text-center">
+            <div className="text-5xl mb-4">🎉</div>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">Your AI SEO Analysis is Ready!</h1>
+            <p className="text-xl text-muted-foreground mb-2">Powered by Google Gemini 1.5 Flash</p>
+            {analysisData.url && (
+              <p className="text-sm text-muted-foreground mb-2">📍 Analyzed: <strong>{analysisData.url}</strong></p>
+            )}
+            {analysisData.businessName && (
+              <p className="text-sm text-muted-foreground mb-2">🏢 Business: <strong>{analysisData.businessName}</strong></p>
+            )}
+            {keyword && (
+              <p className="text-sm text-muted-foreground mb-6">🔑 Target Keyword: <strong>{keyword}</strong></p>
+            )}
+            <div className="flex flex-wrap gap-4 justify-center">
+              <Link to="/dashboard">
+                <Button className="btn-gradient">
+                  <RefreshCw className="mr-2" size={18} />
+                  New Analysis
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="max-w-5xl mx-auto space-y-6">
+          {sections.map((section, index) => (
+            <Card key={index} className="card-hover">
+              <CardHeader
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => toggleSection(index)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{section.icon}</span>
+                    <div>
+                      <CardTitle className="text-xl">{section.title}</CardTitle>
+                      <CardDescription>{section.description}</CardDescription>
+                    </div>
+                  </div>
+                  {expandedSections.includes(index) ? <ChevronUp /> : <ChevronDown />}
+                </div>
+              </CardHeader>
+              {expandedSections.includes(index) && (
+                <CardContent className="pt-0 animate-fade-in">
+                  <div className="border-t pt-6">
+                    {section.content}
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          ))}
+        </div>
+
+        {/* RAW AI RESPONSE SECTION - Shows real Google Gemini output */}
+        {analysisData.geminiResponse && (
+          <Card className="mt-8 max-w-5xl mx-auto">
+            <CardHeader>
+              <CardTitle>🧠 Full Google Gemini AI Response</CardTitle>
+              <CardDescription>Complete analysis from Google's AI (unfiltered)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-slate-900 text-slate-100 p-6 rounded-lg max-h-96 overflow-y-auto relative group">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 hover:bg-slate-700 text-white"
+                  onClick={() => copyToClipboard(analysisData.geminiResponse)}
+                >
+                  <Copy size={16} className="mr-2" />
+                  Copy
+                </Button>
+                <pre className="text-sm whitespace-pre-wrap font-mono">
+                  {analysisData.geminiResponse}
+                </pre>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Helper function to build sections from REAL backend data
+function buildSections(results: any, keyword: string, copyFn: (text: string) => void) {
+  const sections = [];
+
+  // Section 1: Scores - Use REAL scores from Gemini
+  sections.push({
+    icon: "📊",
+    title: "SEO & AEO Scores",
+    description: "AI-calculated performance metrics",
+    content: <RealScoresContent results={results} />
+  });
+
+  // Section 2: Recommendations - Use REAL recommendations from Gemini
+  if (results.recommendations && results.recommendations.length > 0) {
+    sections.push({
+      icon: "💡",
+      title: "AI Recommendations",
+      description: `${results.recommendations.length} actionable improvements from Google Gemini`,
+      content: <RealRecommendationsContent recommendations={results.recommendations} copyFn={copyFn} />
+    });
+  }
+
+  // Section 3: Keyword Strategy - Use REAL keywords from Gemini
+  if (results.keywordStrategy || keyword) {
+    sections.push({
+      icon: "🔑",
+      title: "Keyword Strategy",
+      description: "AI-generated keyword insights",
+      content: <RealKeywordStrategyContent data={results.keywordStrategy} keyword={keyword} />
+    });
+  }
+
+  // Section 4: Meta Tags - Use REAL meta tags from Gemini
+  if (results.metaTags) {
+    sections.push({
+      icon: "🏷️",
+      title: "Optimized Meta Tags",
+      description: "AI-written SEO tags",
+      content: <RealMetaTagsContent data={results.metaTags} copyFn={copyFn} />
+    });
+  }
+
+  // Section 5: Content Suggestions - Use REAL suggestions from Gemini
+  if (results.contentSuggestions && results.contentSuggestions.length > 0) {
+    sections.push({
+      icon: "📝",
+      title: "Content Strategy",
+      description: `${results.contentSuggestions.length} AI-generated content ideas`,
+      content: <RealContentSuggestionsContent data={results.contentSuggestions} />
+    });
+  }
+
+  return sections;
+}
+
+// REAL Scores Component
+const RealScoresContent = ({ results }: any) => {
+  const seoScore = results.seoScore || 0;
+  const aeoScore = results.aeoScore || 0;
+  const overallScore = results.overallScore || Math.round((seoScore + aeoScore) / 2);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <ScoreCard title="SEO Score" score={seoScore} color="from-blue-500 to-cyan-500" />
+        <ScoreCard title="AEO Score" score={aeoScore} color="from-purple-500 to-pink-500" />
+        <ScoreCard title="Overall Score" score={overallScore} color="from-green-500 to-emerald-500" />
+      </div>
+      <div className="text-sm text-muted-foreground text-center">
+        ✨ Scores calculated by Google Gemini 1.5 Flash AI
+      </div>
+    </div>
+  );
+};
+
+const ScoreCard = ({ title, score, color }: { title: string; score: number; color: string }) => (
+  <div className="text-center p-6 bg-muted rounded-xl">
+    <div className={`text-5xl font-bold bg-gradient-to-r ${color} bg-clip-text text-transparent mb-2`}>
+      {score}
+    </div>
+    <h3 className="text-lg font-semibold mb-2">{title}</h3>
+    <Progress value={score} className="h-2" />
+  </div>
+);
+
+// REAL Recommendations Component
+const RealRecommendationsContent = ({ recommendations, copyFn }: any) => {
+  const priorityColors = {
+    high: "bg-red-100 text-red-800 border-red-200",
+    medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
+    low: "bg-blue-100 text-blue-800 border-blue-200"
+  };
+
+  return (
+    <div className="space-y-4">
+      {recommendations.map((rec: any, idx: number) => (
+        <div key={idx} className="border rounded-lg p-4 space-y-3">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <h4 className="font-semibold text-lg">{rec.title}</h4>
+                {rec.priority && (
+                  <Badge className={priorityColors[rec.priority as keyof typeof priorityColors]}>
+                    {rec.priority.toUpperCase()}
+                  </Badge>
+                )}
+                {rec.category && (
+                  <Badge variant="outline">{rec.category}</Badge>
+                )}
+              </div>
+              <p className="text-muted-foreground">{rec.description}</p>
+            </div>
+          </div>
+          {rec.code && (
+            <div className="bg-slate-900 text-slate-100 p-4 rounded-lg relative group">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 hover:bg-slate-700 text-white"
+                onClick={() => copyFn(rec.code)}
+              >
+                <Copy size={16} />
+              </Button>
+              <pre className="text-sm overflow-x-auto">
+                <code>{rec.code}</code>
+              </pre>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// REAL Keyword Strategy Component
+const RealKeywordStrategyContent = ({ data, keyword }: any) => (
+  <div className="space-y-6">
+    <div>
+      <h3 className="font-semibold mb-3 text-lg">Primary Keyword</h3>
+      <div className="bg-purple-50 border-l-4 border-purple-500 p-4 rounded">
+        <span className="text-lg font-semibold">{data?.primary || keyword || "Not specified"}</span>
+      </div>
+    </div>
+
+    {data?.lsi && data.lsi.length > 0 && (
+      <div>
+        <h3 className="font-semibold mb-3 text-lg">LSI Keywords (Latent Semantic Indexing)</h3>
+        <div className="flex flex-wrap gap-2">
+          {data.lsi.map((kw: string, idx: number) => (
+            <Badge key={idx} variant="secondary" className="px-3 py-1">
+              {kw}
+            </Badge>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {data?.longTail && data.longTail.length > 0 && (
+      <div>
+        <h3 className="font-semibold mb-3 text-lg">Long-Tail Keywords (High Conversion)</h3>
+        <ul className="space-y-2">
+          {data.longTail.map((kw: string, idx: number) => (
+            <li key={idx} className="flex items-center gap-2">
+              <span className="text-purple-500">▸</span>
+              <span>{kw}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </div>
+);
+
+// REAL Meta Tags Component
+const RealMetaTagsContent = ({ data, copyFn }: any) => {
+  const metaTags = `<title>${data.title || ''}</title>
+<meta name="description" content="${data.description || ''}" />
+<meta property="og:title" content="${data.ogTitle || data.title || ''}" />
+<meta property="og:description" content="${data.ogDescription || data.description || ''}" />`;
+
+  return (
+    <div className="space-y-4">
+      {data.title && (
+        <div>
+          <div className="font-semibold mb-2">Title Tag ({data.title.length} characters)</div>
+          <div className="bg-muted p-3 rounded mt-2">
+            <p className="font-medium">{data.title}</p>
+          </div>
+        </div>
+      )}
+
+      {data.description && (
+        <div>
+          <div className="font-semibold mb-2">Meta Description ({data.description.length} characters)</div>
+          <div className="bg-muted p-3 rounded mt-2">
+            <p>{data.description}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-slate-900 text-slate-100 p-4 rounded-lg relative group">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 hover:bg-slate-700 text-white"
+          onClick={() => copyFn(metaTags)}
+        >
+          <Copy size={16} />
+        </Button>
+        <pre className="text-sm overflow-x-auto">
+          <code>{metaTags}</code>
+        </pre>
+      </div>
+    </div>
+  );
+};
+
+// REAL Content Suggestions Component
+const RealContentSuggestionsContent = ({ data }: any) => (
+  <div className="space-y-4">
+    {data.map((content: any, idx: number) => (
+      <div key={idx} className="border rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <h4 className="font-semibold text-lg">{content.title}</h4>
+          {content.type && <Badge variant="outline">{content.type}</Badge>}
+          {content.keyword && (
+            <Badge className="bg-purple-100 text-purple-800">{content.keyword}</Badge>
+          )}
+        </div>
+        {content.outline && content.outline.length > 0 && (
+          <ul className="space-y-1 mt-3">
+            {content.outline.map((point: string, pidx: number) => (
+              <li key={pidx} className="flex items-start gap-2">
+                <span className="text-primary mt-1">•</span>
+                <span className="text-sm text-muted-foreground">{point}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    ))}
+  </div>
+);
+
+export default Results;
+
+  <div className="space-y-6">
+    <div className="flex flex-col items-center">
+      <div className="relative w-32 h-32 mb-4">
+        <div className="absolute inset-0 rounded-full border-8 border-muted"></div>
+        <div className="absolute inset-0 rounded-full border-8 border-primary border-t-transparent border-r-transparent" style={{ transform: 'rotate(260deg)' }}></div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-4xl font-bold gradient-text">72</span>
+        </div>
+      </div>
+      <h3 className="text-xl font-semibold mb-1">Overall SEO Score</h3>
+      <Badge className="bg-yellow-100 text-yellow-800">Good - Needs Improvement</Badge>
+    </div>
+
+    <div className="space-y-4">
+      <h4 className="font-semibold text-lg">Breakdown:</h4>
+      <div className="space-y-3">
+        <div>
+          <div className="flex justify-between mb-2">
+            <span className="text-sm font-medium">Technical SEO</span>
+            <span className="text-sm font-bold text-primary">85/100</span>
+          </div>
+          <Progress value={85} className="h-2" />
+        </div>
+        <div>
+          <div className="flex justify-between mb-2">
+            <span className="text-sm font-medium">Content Quality</span>
+            <span className="text-sm font-bold">65/100</span>
+          </div>
+          <Progress value={65} className="h-2" />
+        </div>
+        <div>
+          <div className="flex justify-between mb-2">
+            <span className="text-sm font-medium">Keyword Usage</span>
+            <span className="text-sm font-bold">78/100</span>
+          </div>
+          <Progress value={78} className="h-2" />
+        </div>
+        <div>
+          <div className="flex justify-between mb-2">
+            <span className="text-sm font-medium">Mobile Friendly</span>
+            <span className="text-sm font-bold text-red-500">45/100 (Critical!)</span>
+          </div>
+          <Progress value={45} className="h-2" />
+        </div>
+      </div>
+    </div>
+
+    <div className="bg-primary/10 border border-primary rounded-lg p-4">
+      <p className="font-semibold">🎯 Top Priority: Improve mobile responsiveness</p>
+    </div>
+  </div>
+);
+
+// Section 2: Keyword Strategy
+const KeywordStrategyContent = () => {
+  const { toast } = useToast();
+  return (
+    <div className="space-y-6">
+      <div>
+        <h4 className="font-semibold mb-3">Primary Keyword</h4>
+        <div className="border-l-4 border-primary bg-primary/5 p-4 rounded-r-lg">
+          <div className="flex justify-between items-start mb-2">
+            <span className="text-lg font-semibold">organic skincare serum</span>
+            <Button size="sm" variant="ghost" onClick={() => toast({ title: "Copied!" })}>
+              <Copy size={16} />
+            </Button>
+          </div>
+          <div className="flex gap-3 text-sm">
+            <Badge variant="secondary">Search Volume: 12,000/mo</Badge>
+            <Badge variant="secondary">Difficulty: Medium</Badge>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h4 className="font-semibold mb-3">LSI Keywords (Latent Semantic Indexing)</h4>
+        <ul className="space-y-2">
+          {['natural face serum', 'anti-aging serum organic', 'vitamin C serum natural', 'organic facial treatment'].map((kw, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <span className="text-primary mt-1">•</span>
+              <span>{kw}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <h4 className="font-semibold mb-3">Long-Tail Keywords (High Conversion)</h4>
+        <ul className="space-y-2">
+          {[
+            'best organic anti-aging serum for sensitive skin',
+            'affordable natural face serum for wrinkles',
+            'organic vitamin C serum for dark spots'
+          ].map((kw, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <span className="text-primary mt-1">•</span>
+              <span className="text-sm">{kw}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="bg-muted p-4 rounded-lg">
+        <p className="text-sm"><strong>Keyword Density Recommendation:</strong> 1.5-2.5%</p>
+        <p className="text-sm">Use primary keyword 5-8 times per 1000 words</p>
+      </div>
+    </div>
+  );
+};
+
+// Section 3: Meta Tags
+const MetaTagsContent = () => {
+  const { toast } = useToast();
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Check className="text-success" size={20} />
+          <h4 className="font-semibold">Optimized Meta Title</h4>
+        </div>
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-2">
+          <p className="font-medium">Organic Skincare Serum | Natural Anti-Aging Face Treatment - GlowSkin</p>
+        </div>
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span className="text-success flex items-center gap-1">
+            <Check size={16} /> Length: 58 chars (Optimal: 50-60)
+          </span>
+          <Button size="sm" variant="outline" onClick={() => toast({ title: "Copied to clipboard!" })}>
+            <Copy size={14} className="mr-1" /> Copy
+          </Button>
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Check className="text-success" size={20} />
+          <h4 className="font-semibold">Optimized Meta Description</h4>
+        </div>
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-2">
+          <p>Discover our premium organic skincare serum with natural ingredients. Anti-aging, hydrating, and perfect for sensitive skin. Shop now for radiant, youthful skin.</p>
+        </div>
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span className="text-success flex items-center gap-1">
+            <Check size={16} /> Length: 155 chars (Optimal: 150-160)
+          </span>
+          <Button size="sm" variant="outline" onClick={() => toast({ title: "Copied to clipboard!" })}>
+            <Copy size={14} className="mr-1" /> Copy
+          </Button>
+        </div>
+      </div>
+
+      <div>
+        <h4 className="font-semibold mb-2">🏷️ Suggested H1 Tag</h4>
+        <p className="text-lg">"Transform Your Skin with Organic Serum"</p>
+      </div>
+
+      <div>
+        <h4 className="font-semibold mb-2">🏷️ Suggested H2 Tags</h4>
+        <ul className="space-y-1">
+          {[
+            'Why Choose Organic Skincare Serum?',
+            'Key Ingredients & Benefits',
+            'How to Use Our Natural Face Serum'
+          ].map((h2, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <span className="text-primary mt-1">•</span>
+              <span>{h2}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+// Section 4: Content Recommendations
+const ContentRecommendationsContent = () => (
+  <div className="space-y-6">
+    <div>
+      <h4 className="font-semibold mb-3">Homepage Content Structure</h4>
+      <div className="space-y-4">
+        <div className="border-l-4 border-primary pl-4">
+          <h5 className="font-medium mb-2">1. Hero Section (Above Fold)</h5>
+          <ul className="space-y-1 text-sm">
+            <li>• Main headline with primary keyword</li>
+            <li>• Clear CTA button</li>
+            <li>• Trust signals (testimonials, certifications)</li>
+          </ul>
+        </div>
+        <div className="border-l-4 border-primary pl-4">
+          <h5 className="font-medium mb-2">2. Product Benefits Section</h5>
+          <ul className="space-y-1 text-sm">
+            <li>• 3-5 key benefits with icons</li>
+            <li>• Use LSI keywords naturally</li>
+          </ul>
+        </div>
+        <div className="border-l-4 border-primary pl-4">
+          <h5 className="font-medium mb-2">3. How It Works / Usage Guide</h5>
+          <ul className="space-y-1 text-sm">
+            <li>• Step-by-step instructions</li>
+            <li>• Include long-tail keywords</li>
+          </ul>
+        </div>
+        <div className="border-l-4 border-primary pl-4">
+          <h5 className="font-medium mb-2">4. Social Proof</h5>
+          <ul className="space-y-1 text-sm">
+            <li>• Customer reviews (schema markup)</li>
+            <li>• Before/after images</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div className="bg-muted p-4 rounded-lg space-y-2">
+      <p className="text-sm"><strong>Recommended Word Count:</strong> 800-1200 words</p>
+      <p className="text-sm"><strong>Reading Level:</strong> 8th grade (accessible)</p>
+      <p className="text-sm"><strong>Internal Links:</strong> Add 3-5 relevant product links</p>
+    </div>
+  </div>
+);
+
+// Section 5: Technical SEO
+const TechnicalSEOContent = () => (
+  <div className="space-y-6">
+    <div>
+      <h4 className="font-semibold text-red-600 mb-3">❌ Critical Issues (Fix Immediately)</h4>
+      <div className="space-y-4">
+        <div className="border-l-4 border-red-500 pl-4">
+          <h5 className="font-medium mb-2">1. Mobile Responsiveness</h5>
+          <p className="text-sm text-muted-foreground mb-2">Current Score: 45/100</p>
+          <ul className="space-y-1 text-sm">
+            <li>→ Use responsive design framework</li>
+            <li>→ Test on mobile devices</li>
+          </ul>
+        </div>
+        <div className="border-l-4 border-red-500 pl-4">
+          <h5 className="font-medium mb-2">2. Page Load Speed</h5>
+          <p className="text-sm text-muted-foreground mb-2">Current: 4.2s (Too slow!)</p>
+          <ul className="space-y-1 text-sm">
+            <li>→ Optimize images (use WebP format)</li>
+            <li>→ Enable browser caching</li>
+            <li>→ Minify CSS/JS files</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h4 className="font-semibold text-yellow-600 mb-3">⚠️ Warnings (Address Soon)</h4>
+      <ul className="space-y-2">
+        <li className="flex items-start gap-2">
+          <span className="text-yellow-600 mt-1">•</span>
+          <span>Missing alt tags on 7 images</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-yellow-600 mt-1">•</span>
+          <span>No structured data (schema.org markup)</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-yellow-600 mt-1">•</span>
+          <span>Broken internal link found (1)</span>
+        </li>
+      </ul>
+    </div>
+
+    <div>
+      <h4 className="font-semibold text-success mb-3">✅ Doing Well</h4>
+      <ul className="space-y-2">
+        <li className="flex items-start gap-2">
+          <span className="text-success mt-1">•</span>
+          <span>SSL certificate active</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-success mt-1">•</span>
+          <span>Clean URL structure</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-success mt-1">•</span>
+          <span>Sitemap.xml present</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+);
+
+// Section 6: Blog Ideas
+const BlogIdeasContent = () => (
+  <div className="space-y-6">
+    {[
+      {
+        title: "10 Benefits of Organic Skincare Serum",
+        keyword: "natural face serum benefits",
+        wordCount: "1500-2000",
+        reason: "High search volume, low competition"
+      },
+      {
+        title: "How to Choose the Best Anti-Aging Serum",
+        keyword: "best anti-aging serum",
+        wordCount: "2000-2500",
+        reason: "Buyer intent keyword, high conversion potential"
+      },
+      {
+        title: "Organic vs Synthetic Skincare: The Truth",
+        keyword: "organic skincare comparison",
+        wordCount: "1200-1800",
+        reason: "Educational content builds authority"
+      }
+    ].map((blog, i) => (
+      <div key={i} className="border rounded-lg p-4 card-hover">
+        <div className="flex items-start gap-3 mb-3">
+          <span className="text-2xl">📝</span>
+          <div className="flex-1">
+            <h5 className="font-semibold text-lg mb-2">{blog.title}</h5>
+            <div className="space-y-1 text-sm">
+              <p><strong>Target Keyword:</strong> {blog.keyword}</p>
+              <p><strong>Word Count:</strong> {blog.wordCount}</p>
+              <p><strong>Why:</strong> {blog.reason}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    ))}
+
+    <div className="bg-muted p-4 rounded-lg">
+      <h5 className="font-semibold mb-2">Content Calendar Suggestion:</h5>
+      <ul className="space-y-1 text-sm">
+        <li>• Week 1: Publish Post #1</li>
+        <li>• Week 3: Publish Post #2</li>
+        <li>• Week 5: Publish Post #3</li>
+        <li>• Frequency: 1-2 posts per week for best results</li>
+      </ul>
+    </div>
+  </div>
+);
+
+// Section 7: Link Building
+const LinkBuildingContent = () => (
+  <div className="space-y-6">
+    <div>
+      <h4 className="font-semibold mb-3">Internal Linking Opportunities</h4>
+      <ul className="space-y-2">
+        <li className="flex items-start gap-2">
+          <span className="text-primary mt-1">•</span>
+          <span>Link "serum" to product page</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-primary mt-1">•</span>
+          <span>Link "skincare routine" to blog category</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-primary mt-1">•</span>
+          <span>Create pillar page: "Complete Skincare Guide"</span>
+        </li>
+      </ul>
+    </div>
+
+    <div>
+      <h4 className="font-semibold mb-3">External Link Suggestions (Outreach)</h4>
+      <div className="space-y-4">
+        <div className="border-l-4 border-primary pl-4">
+          <h5 className="font-medium mb-1">1. Beauty blogs (Domain Authority 40+)</h5>
+          <p className="text-sm text-muted-foreground">Example: beautyblogger.com/guest-posts</p>
+        </div>
+        <div className="border-l-4 border-primary pl-4">
+          <h5 className="font-medium mb-1">2. Skincare forums & communities</h5>
+          <p className="text-sm text-muted-foreground">Participate with value-add comments</p>
+        </div>
+        <div className="border-l-4 border-primary pl-4">
+          <h5 className="font-medium mb-1">3. Influencer collaborations</h5>
+          <p className="text-sm text-muted-foreground">Partner with micro-influencers (10K-50K)</p>
+        </div>
+      </div>
+    </div>
+
+    <div className="bg-muted p-4 rounded-lg">
+      <p className="text-sm font-semibold">Backlink Goal: 5-10 quality backlinks/month</p>
+    </div>
+  </div>
+);
+
+const sections = [
+  {
+    icon: "📊",
+    title: "SEO Score & Overview",
+    description: "Overall performance and key metrics",
+    content: <SEOScoreContent />
+  },
+  {
+    icon: "🔑",
+    title: "Keyword Strategy",
+    description: "Primary, LSI, and long-tail keywords",
+    content: <KeywordStrategyContent />
+  },
+  {
+    icon: "📝",
+    title: "Meta Tags Optimization",
+    description: "Optimized titles and descriptions",
+    content: <MetaTagsContent />
+  },
+  {
+    icon: "📖",
+    title: "Content Recommendations",
+    description: "Structure and content suggestions",
+    content: <ContentRecommendationsContent />
+  },
+  {
+    icon: "🚀",
+    title: "Technical SEO Improvements",
+    description: "Critical issues and fixes",
+    content: <TechnicalSEOContent />
+  },
+  {
+    icon: "💡",
+    title: "Blog Content Ideas",
+    description: "SEO-optimized blog post suggestions",
+    content: <BlogIdeasContent />
+  },
+  {
+    icon: "🔗",
+    title: "Link Building Strategy",
+    description: "Internal and external linking opportunities",
+    content: <LinkBuildingContent />
+  }
+];
+
+export default Results;

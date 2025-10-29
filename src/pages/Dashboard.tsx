@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { analysisAPI } from "@/lib/api";
 
 const Dashboard = () => {
   const [mode, setMode] = useState<"url" | "manual">("url");
@@ -40,7 +41,7 @@ const Dashboard = () => {
   const [socialMedia, setSocialMedia] = useState(false);
   const [productDesc, setProductDesc] = useState(false);
 
-  const handleUrlAnalysis = (e: React.FormEvent) => {
+  const handleUrlAnalysis = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!url || !urlKeyword) {
@@ -55,17 +56,48 @@ const Dashboard = () => {
     setLoading(true);
     toast({
       title: "🧠 AI is analyzing...",
-      description: "This may take 30-60 seconds",
+      description: "Google Gemini is analyzing your website. This may take 30-60 seconds",
     });
 
-    // Mock API call
-    setTimeout(() => {
+    try {
+      const result = await analysisAPI.analyzeURL({
+        url,
+        keyword: urlKeyword,
+        industry: urlIndustry || undefined,
+        competitor: competitor || undefined,
+        focus: {
+          technicalSEO,
+          content,
+          keywords,
+          ux
+        }
+      });
+
       setLoading(false);
-      navigate("/results", { state: { mode: "url", data: { url, urlKeyword } } });
-    }, 2000);
+      toast({
+        title: "✅ Analysis Complete!",
+        description: "Your SEO analysis is ready",
+      });
+      
+      // Navigate to results with real data
+      navigate("/results", { 
+        state: { 
+          mode: "url", 
+          data: result.analysis,
+          keyword: urlKeyword 
+        } 
+      });
+    } catch (error: any) {
+      setLoading(false);
+      toast({
+        title: "❌ Analysis Failed",
+        description: error.message || "Please ensure the backend server is running on port 5000",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleManualGeneration = (e: React.FormEvent) => {
+  const handleManualGeneration = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!businessName || !manualIndustry || !description || !targetAudience || !manualKeyword) {
@@ -89,14 +121,49 @@ const Dashboard = () => {
     setLoading(true);
     toast({
       title: "✨ Generating strategy...",
-      description: "This may take 30-60 seconds",
+      description: "Google Gemini is creating your SEO strategy. This may take 30-60 seconds",
     });
 
-    // Mock API call
-    setTimeout(() => {
+    try {
+      const result = await analysisAPI.generateStrategy({
+        businessName,
+        industry: manualIndustry,
+        description,
+        targetAudience,
+        primaryKeyword: manualKeyword,
+        secondaryKeywords: secondaryKeywords ? secondaryKeywords.split(',').map(k => k.trim()) : undefined,
+        geographic: geographic || undefined,
+        contentGoals: {
+          blogStrategy,
+          metaTags,
+          landingPages,
+          socialMedia,
+          productDesc
+        }
+      });
+
       setLoading(false);
-      navigate("/results", { state: { mode: "manual", data: { businessName, manualKeyword } } });
-    }, 2000);
+      toast({
+        title: "✅ Strategy Generated!",
+        description: "Your SEO strategy is ready",
+      });
+      
+      // Navigate to results with real data
+      navigate("/results", { 
+        state: { 
+          mode: "manual", 
+          data: result.analysis,
+          keyword: manualKeyword 
+        } 
+      });
+    } catch (error: any) {
+      setLoading(false);
+      toast({
+        title: "❌ Generation Failed",
+        description: error.message || "Please ensure the backend server is running on port 5000",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -402,8 +469,8 @@ const Dashboard = () => {
           <div className="bg-white rounded-2xl p-12 text-center max-w-md">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
             <div className="text-3xl mb-4">🧠</div>
-            <h3 className="text-2xl font-bold mb-2">AI is analyzing your SEO...</h3>
-            <p className="text-muted-foreground">This may take 30-60 seconds</p>
+            <h3 className="text-2xl font-bold mb-2">Google Gemini AI is analyzing...</h3>
+            <p className="text-muted-foreground">This may take 30-60 seconds. Real AI analysis in progress!</p>
           </div>
         </div>
       )}

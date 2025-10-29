@@ -1,13 +1,38 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const Navigation = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userName, setUserName] = useState("User");
+  const [userInitials, setUserInitials] = useState("U");
   
   const isLandingPage = location.pathname === "/";
+
+  useEffect(() => {
+    // Get user data from localStorage
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        if (user.name) {
+          setUserName(user.name);
+          // Get initials from name
+          const nameParts = user.name.trim().split(" ");
+          const initials = nameParts
+            .map(part => part[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2);
+          setUserInitials(initials);
+        }
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+      }
+    }
+  }, []);
 
   if (!isLandingPage) {
     return (
@@ -19,9 +44,9 @@ const Navigation = () => {
             </Link>
             {location.pathname === "/dashboard" && (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">John Doe</span>
+                <span className="text-sm text-muted-foreground">{userName}</span>
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
-                  JD
+                  {userInitials}
                 </div>
               </div>
             )}
